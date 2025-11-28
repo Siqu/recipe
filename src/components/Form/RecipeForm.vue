@@ -12,10 +12,7 @@
     required: true,
   })
 
-  defineEmits<{
-    cancel: never
-    submit: never
-  }>()
+  defineEmits(['cancel', 'submit'])
 
   function addIngredient () {
     if (!model.value.ingredients) {
