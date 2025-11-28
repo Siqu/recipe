@@ -19,17 +19,13 @@
   const route = useRoute('recipe')
   const { supabase } = useSupabase()
 
-  supabase.from('Recipe').select().eq('id', route.params.id).single().then(resp => resp.data).then(data => {
-    recipe.value = data
-    if (recipe.value?.recipeYield) {
-      defaultServings.value = recipe.value.recipeYield
-      servings.value = recipe.value.recipeYield
-    }
-  })
-
   const recipe = ref<Tables<'Recipe'> | null>(null)
   const defaultServings = ref(1)
+  const loading = ref(true)
+  const saving = ref(false)
   const servings = ref(1)
+  const recipeFormValid = ref<boolean | null>(null)
+  const editDialog = ref(false)
 
   const readableDuration = computed(() => {
     const totalDuration = moment.duration()
@@ -80,31 +76,90 @@
     })
   })
 
+  const editActionsDisabled = computed((): boolean | ('cancel' | 'save')[] | undefined => {
+    if (!recipeFormValid.value) {
+      return ['save']
+    }
+
+    return false
+  })
+
   function deleteRecipe () {
     supabase.from('Recipe').delete().eq('id', route.params.id).then(() => {
       router.replace({ name: 'recipes' })
     }, console.error)
   }
+
+  function updateRecipe (model: Ref<Tables<'Recipe'>>, confirmEditSave: () => void) {
+    saving.value = true
+    supabase
+      .from('Recipe')
+      .update(model.value)
+      .eq('id', route.params.id)
+      .then(() => {
+        confirmEditSave()
+        editDialog.value = false
+        saving.value = false
+      })
+  }
+
+  onMounted(() => {
+    loading.value = true
+    supabase.from('Recipe').select().eq('id', route.params.id).single().then(resp => resp.data).then(data => {
+      recipe.value = data
+      if (recipe.value?.recipeYield) {
+        defaultServings.value = recipe.value.recipeYield
+        servings.value = recipe.value.recipeYield
+      }
+      loading.value = false
+    })
+  })
 </script>
 
 <template>
   <v-container>
     <v-row>
       <v-col cols="12" lg="8" offset-lg="2">
-        <v-card v-if="!!recipe">
+        <v-card v-if="loading">
           <v-row>
-            <v-col cols="6" lg="3" md="4" xl="2">
-              <RecipeImage :recipe="recipe" />
+            <v-col cols="12" lg="3" md="4" xl="2">
+              <v-skeleton-loader type="image" />
             </v-col>
             <v-col
-              cols="6"
+              cols="12"
               lg="9"
               md="8"
               xl="10"
             >
-              <v-card-title class="d-flex flex-column h-100 position-relative">
-                <span>{{ recipe.name }}</span>
-                <v-chip-group v-if="recipe?.keywords">
+              <v-skeleton-loader type="heading,subtitle" />
+              <v-skeleton-loader type="button, button" />
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col cols="12" lg="4" md="6">
+              <v-skeleton-loader type="heading" />
+              <v-skeleton-loader type="list-item,list-item" />
+            </v-col>
+            <v-col cols="12" lg="8" md="6">
+              <v-skeleton-loader type="heading" />
+              <v-skeleton-loader type="list-item,list-item" />
+            </v-col>
+          </v-row>
+        </v-card>
+        <v-card v-else-if="recipe">
+          <v-row>
+            <v-col cols="12" lg="3" md="4" xl="2">
+              <RecipeImage :recipe="recipe" />
+            </v-col>
+            <v-col
+              cols="12"
+              lg="9"
+              md="8"
+              xl="10"
+            >
+              <v-card-title class="d-flex flex-column h-100">
+                <div class="text-wrap">{{ recipe.name }}</div>
+                <v-chip-group v-if="recipe?.keywords" class="mb-2">
                   <v-chip v-for="(keyword, idx) in recipe.keywords" :key="idx" size="small" :text="keyword" />
                 </v-chip-group>
                 <v-spacer />
@@ -133,26 +188,56 @@
                     </v-tooltip>
                   </v-col>
                 </v-row>
-                <v-dialog max-width="400">
-                  <template #activator="{props: activatorProps}">
-                    <v-btn
-                      class="top-0 right-0 me-3 mt-3"
-                      color="error"
-                      icon="mdi-delete"
-                      position="absolute"
-                      v-bind="activatorProps"
-                    />
-                  </template>
-                  <template #default="{isActive}">
-                    <v-card title="Delete Recipe?">
-                      <v-card-actions>
-                        <v-btn text="Cancel" @click="isActive.value = false" />
-                        <v-spacer />
-                        <v-btn color="error" text="Delete" @click="deleteRecipe" />
-                      </v-card-actions>
-                    </v-card>
-                  </template>
-                </v-dialog>
+                <div class="position-absolute top-0 right-0 me-3 mt-3">
+                  <v-dialog v-model="editDialog" fullscreen>
+                    <template #activator="{props: activatorProps}">
+                      <v-btn
+                        class="me-3"
+                        color="primary"
+                        icon="mdi-pencil"
+                        size="small"
+                        variant="outlined"
+                        v-bind="activatorProps"
+                      />
+                    </template>
+                    <template #default="{isActive}">
+                      <v-card :disabled="saving" title="Edit Recipe">
+                        <v-confirm-edit v-model="recipe" :disabled="editActionsDisabled" hide-actions>
+                          <template #default="{model: proxyModel, isPristine, cancel, save}">
+                            <RecipeForm v-model="proxyModel.value" v-model:recipe-form-valid="recipeFormValid">
+                              <template #actions>
+                                <v-btn @click="() => {cancel();isActive.value = false}">Cancel</v-btn>
+                                <v-spacer />
+                                <v-btn color="primary" :disabled="true !== recipeFormValid || isPristine" variant="elevated" @click="updateRecipe(proxyModel, save)">
+                                  Update recipe
+                                </v-btn>
+                              </template>
+                            </RecipeForm>
+                          </template>
+                        </v-confirm-edit>
+                      </v-card>
+                    </template>
+                  </v-dialog>
+                  <v-dialog max-width="400">
+                    <template #activator="{props: activatorProps}">
+                      <v-btn
+                        color="error"
+                        icon="mdi-delete"
+                        size="small"
+                        v-bind="activatorProps"
+                      />
+                    </template>
+                    <template #default="{isActive}">
+                      <v-card title="Delete Recipe?">
+                        <v-card-actions>
+                          <v-btn text="Cancel" @click="isActive.value = false" />
+                          <v-spacer />
+                          <v-btn color="error" text="Delete" @click="deleteRecipe" />
+                        </v-card-actions>
+                      </v-card>
+                    </template>
+                  </v-dialog>
+                </div>
               </v-card-title>
             </v-col>
           </v-row>

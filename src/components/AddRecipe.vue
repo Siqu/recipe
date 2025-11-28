@@ -3,10 +3,9 @@
     lang="ts"
 >
   import type { Recipe } from 'schema-dts'
-  import type { Ingredient, TablesInsert, Unit } from '@/supabase.types.ts'
+  import type { TablesInsert, Unit } from '@/supabase.types.ts'
   import isURL from 'validator/lib/isURL'
   import { watch } from 'vue'
-  import IngredientInput from '@/components/Form/IngredientInput.vue'
   import useSupabase from '@/composable/useSupabase.ts'
   import { units } from '@/plugins/units.ts'
 
@@ -17,7 +16,7 @@
   const step = ref(1)
   const url = ref('')
   const urlFormValid = ref(null)
-  const recipeFormValid = ref(null)
+  const recipeFormValid = ref<boolean | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -58,46 +57,10 @@
   ]
 
   const disabled = computed(() => {
-    if (1 === step.value) return 'prev'
     if (2 === step.value && true !== recipeFormValid.value) return 'next'
 
-    return undefined
+    return false
   })
-
-  function addIngredient () {
-    if (!recipe.value.ingredients) {
-      recipe.value.ingredients = []
-    }
-
-    recipe.value.ingredients.push({
-      name: '',
-      amount: null,
-      unit: null,
-    })
-  }
-
-  function removeIngredient (idx: number) {
-    if (!recipe.value.ingredients) {
-      return
-    }
-
-    recipe.value.ingredients.splice(idx, 1)
-  }
-
-  function addInstruction () {
-    if (!recipe.value.instructions) {
-      recipe.value.instructions = []
-    }
-
-    recipe.value.instructions.push('')
-  }
-
-  function removeInstruction (idx: number) {
-    if (!recipe.value.instructions) {
-      return
-    }
-    recipe.value.instructions.splice(idx, 1)
-  }
 
   function createRecipe () {
     if (true === recipeFormValid.value) {
@@ -252,7 +215,7 @@
 </script>
 
 <template>
-  <v-dialog v-model="dialog" max-width="800" :persistent="step !== 1">
+  <v-dialog v-model="dialog" fullscreen :persistent="step !== 1">
     <template #activator="{props: activatorProps}">
       <v-btn
         v-bind="activatorProps"
@@ -287,121 +250,11 @@
               <v-stepper-actions
                 :disabled="disabled"
                 @click:next="fetchMetadata(next)"
-                @click:prev="prev"
+                @click:prev="dialog = false"
               />
             </v-stepper-window-item>
             <v-stepper-window-item :value="2">
-              <v-form v-model="recipeFormValid" validate-on="eager">
-                <v-container>
-                  <v-row>
-                    <v-col v-if="recipe.image" cols="12">
-                      <v-img height="200" :src="null === recipe.image ? undefined : recipe.image" />
-                    </v-col>
-                    <v-col cols="12">
-                      <v-text-field
-                        v-if="recipe.url"
-                        v-model="recipe.url"
-                        hide-details="auto"
-                        label="URL"
-                        readonly
-                      />
-                    </v-col>
-                    <v-col cols="12">
-                      <v-text-field v-model="recipe.name" hide-details="auto" label="Name" />
-                    </v-col>
-                    <v-col cols="12">
-                      <v-textarea
-                        v-model="recipe.description"
-                        auto-grow
-                        hide-details="auto"
-                        label="Description"
-                        rows="1"
-                      />
-                    </v-col>
-                    <v-col cols="12">
-                      <v-combobox
-                        v-model="recipe.keywords"
-                        chips
-                        clearable
-                        closable-chips
-                        hide-details="auto"
-                        label="Keywords"
-                        multiple
-                      />
-                    </v-col>
-                    <v-col cols="12" md="6">
-                      <v-text-field v-model.number="recipe.recipeYield" hide-details="auto" label="Yield" />
-                    </v-col>
-                  </v-row>
-                  <v-row>
-                    <v-col cols="12" md="6">
-                      <DurationInput v-model="recipe.prepTime" label="Preparation time" />
-                    </v-col>
-                    <v-col cols="12" md="6">
-                      <DurationInput v-model="recipe.cookTime" label="Cook time" />
-                    </v-col>
-                  </v-row>
-                  <v-row v-if="!!recipe.ingredients">
-                    <v-col cols="12">
-                      <div class="text-subtitle-2 mb-3">Ingredients</div>
-                      <v-divider class="mb-5" />
-                      <IngredientInput v-for="(ingredient, idx) in recipe.ingredients" :key="idx" v-model="recipe.ingredients[idx] as Ingredient" @remove="removeIngredient(idx)" />
-                      <v-btn
-                        class="mt-5"
-                        color="primary"
-                        icon="mdi-plus"
-                        size="small"
-                        @click="addIngredient"
-                      />
-                      <v-divider class="my-5" />
-                    </v-col>
-                  </v-row>
-                  <v-row v-if="!!recipe.instructions">
-                    <v-col cols="12">
-                      <div class="text-subtitle-2 mb-3">Instructions</div>
-                      <v-divider class="mb-5" />
-                      <v-row
-                        v-for="(instruction, idx) in recipe.instructions"
-                        :key="idx"
-                        align="start"
-                      >
-                        <v-col>
-                          <v-textarea
-                            v-model="recipe.instructions[idx]"
-                            auto-grow
-                            rows="1"
-                          />
-                        </v-col>
-
-                        <v-col class="flex-grow-0">
-                          <v-btn
-                            class="mt-1"
-                            color="error"
-                            icon="mdi-delete"
-                            size="small"
-                            @click="removeInstruction(idx)"
-                          />
-                        </v-col>
-                      </v-row>
-                      <v-btn
-                        class="mt-5"
-                        color="primary"
-                        icon="mdi-plus"
-                        size="small"
-                        @click="addInstruction"
-                      />
-                      <v-divider class="my-5" />
-                    </v-col>
-                  </v-row>
-                </v-container>
-                <v-card-actions>
-                  <v-btn @click="prev">Previous</v-btn>
-                  <v-spacer />
-                  <v-btn color="primary" :disabled="true !== recipeFormValid" variant="elevated" @click="createRecipe">
-                    Create recipe
-                  </v-btn>
-                </v-card-actions>
-              </v-form>
+              <RecipeForm v-model="recipe" v-model:recipe-form-valid="recipeFormValid" @cancel="prev" @submit="createRecipe" />
             </v-stepper-window-item>
           </v-stepper-window>
         </template>

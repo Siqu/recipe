@@ -3,6 +3,7 @@
     lang="ts"
 >
   import type { Tables } from '@/supabase.types.ts'
+  import { useDisplay } from 'vuetify'
   import colors from 'vuetify/util/colors'
 
   const props = withDefaults(defineProps<{
@@ -11,6 +12,8 @@
   }>(), {
     addTitle: false,
   })
+
+  const { mdAndUp } = useDisplay()
 
   const kebabize = (str: string) => str.replace(/[A-Z]+(?![a-z])|[A-Z]/g, ($, ofs) => (ofs ? '-' : '') + $.toLowerCase())
 
@@ -33,11 +36,19 @@
       [bgClass]: true,
     }
   })
+
+  const aspectRatio = computed(() => {
+    if (mdAndUp.value) {
+      return 1
+    }
+
+    return 16 / 9
+  })
 </script>
 
 <template>
   <v-img
-    aspect-ratio="1"
+    :aspect-ratio="aspectRatio"
     :class="classes"
     cover
     :src="recipe.image ?recipe.image: undefined"

@@ -7,15 +7,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   const user = ref<null | User>(null)
 
-  const login = async ({ email, password }: { email: string, password: string }) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-
-    if (error) {
-      throw error
-    }
-
-    return data.user
+  const login = ({ email, password }: { email: string, password: string }) => {
+    return supabase.auth.signInWithPassword({ email, password })
   }
+
   const logout = async () => {
     const { error } = await supabase.auth.signOut()
 

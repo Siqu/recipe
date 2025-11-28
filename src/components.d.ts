@@ -14,6 +14,7 @@ declare module 'vue' {
     AddRecipe: typeof import('./components/AddRecipe.vue')['default']
     DurationInput: typeof import('./components/Form/DurationInput.vue')['default']
     IngredientInput: typeof import('./components/Form/IngredientInput.vue')['default']
+    RecipeForm: typeof import('./components/Form/RecipeForm.vue')['default']
     RecipeImage: typeof import('./components/Recipe/RecipeImage.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

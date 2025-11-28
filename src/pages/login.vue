@@ -3,7 +3,6 @@
     lang="ts"
 >
 
-  import { AuthError } from '@supabase/supabase-js'
   import { definePage } from 'unplugin-vue-router/runtime'
   import { useAuthStore } from '@/stores/auth.ts'
 
@@ -24,18 +23,20 @@
     password: '',
   })
   const visible = ref(false)
-  const error = ref<null | Error>(null)
+  const loading = ref(false)
+  const lastError = ref<null | Error>(null)
 
-  async function handleLogin () {
-    try {
-      await login(model.value)
-
-      router.push({ name: 'index' })
-    } catch (error_) {
-      if (error_ instanceof AuthError) {
-        error.value = error_
-      }
-    }
+  function handleLogin () {
+    loading.value = true
+    login(model.value)
+      .then(({ error }) => {
+        loading.value = false
+        if (error === null) {
+          router.push({ name: 'index' })
+        } else {
+          lastError.value = error
+        }
+      })
   }
 </script>
 
@@ -44,10 +45,10 @@
     <v-row align="center" justify="center">
       <v-col cols="12" md="4" sm="8">
         <v-form @submit.prevent="handleLogin">
-          <v-card elevation="8" title="Login">
+          <v-card :disabled="loading" elevation="8" :loading="loading" title="Login">
             <v-card-text>
-              <v-alert v-if="null !== error" class="mb-4" color="error" icon="mdi-alert">
-                {{ error }}
+              <v-alert v-if="null !== lastError" class="mb-4" color="error" icon="mdi-alert">
+                {{ lastError }}
               </v-alert>
               <v-text-field v-model="model.email" placeholder="Email" prepend-inner-icon="mdi-email-outline" />
               <v-text-field
