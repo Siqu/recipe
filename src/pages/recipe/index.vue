@@ -68,7 +68,7 @@
     scoped
     lang="scss"
 >
-:deep .v-skeleton-loader__image {
+:deep(.v-skeleton-loader__image) {
   height: 100%;
 }
 </style>
